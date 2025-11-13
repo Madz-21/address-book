@@ -60,9 +60,9 @@ flowchart TD
    git clone https://github.com/Madz-21/address-book.git
    ```
 
-2. Open `index.html` in your browser
+2. Open `index.html` in browser
 
-3. Start managing your contacts:
+3. Start managing contacts:
    - Click **"Add Contact"** to create a new contact
    - Click **"Edit"** to modify existing contact
    - Click **"Delete"** to remove a contact
@@ -82,3 +82,4 @@ address-book/
 
 **Name**: Ahmad Sahl Pahlevi                                    
 **GitHub**: [\[My Github Profile\]](https://github.com/Madz-21)
+
