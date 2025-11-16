@@ -1,12 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Address Book</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  </head>
-  <body>
-    <h1 class="text-3xl">Address Book</h1>
-  </body>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Address Book</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./assets/CSS/style.css">
+  <link rel="shortcut icon" href="./assets/Images/address-book.png" type="image/x-icon">
+</head>
+
+<body>
+  <div class="animated-bg"></div>
+
+  <div id="notification" class="notification">
+  </div>
+
+  <div id="loading" class="loading hidden">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Loading contacts...</p>
+  </div>
+
+  <div class="container">
+    <div class="header glass fade-in" id="header">
+      <div class="header-content">
+        <div>
+          <h1 class="header-title">
+            <i class="fas fa-address-book"></i>
+            <span class="header-title-text">Address Book</span>
+          </h1>
+          <p class="header-subtitle">Manage a contacts</p>
+        </div>
+        <div class="header-actions">
+          <div class="search-wrapper">
+            <input type="text" id="searchInput" placeholder="Search contacts..." class="search-input">
+            <i class="search-icon fas fa-search"></i>
+          </div>
+          <button id="addContactBtn" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Contact
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="contactsContainer" class="contacts-grid"></div>
+    <div id="emptyState" class="empty-state hidden">
+      <i class="fas fa-users-slash empty-icon"></i>
+      <h3 class="empty-title">No contacts found</h3>
+      <p class="empty-text">Add the first contact to get started</p>
+      <button id="addFirstContactBtn" class="btn btn-primary"></button>
+    </div>
+  </div>
+
+  <div id="contactModal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h2 id="modalTitle" class="modal-title">Add New Contact</h2>
+        <button class="close">&times;</button>
+      </div>
+      <form id="contactForm">
+        <input type="hidden" id="contactId">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <div class="input-wrapper">
+            <i class="input-icon fas fa-user"></i>
+            <input type="text" id="name" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <div class="input-wrapper">
+            <i class="input-icon fas fa-envelope"></i>
+            <input type="email" id="email" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <div class="input-wrapper">
+            <i class="input-icon fas fa-phone"></i>
+            <input type="tel" id="phone" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          <textarea id="address" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-group-last">
+          <label class="form-label">Notes</label>
+          <textarea id="notes" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="saveBtn" class="btn btn-secondary">Save Contact</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="deleteModal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h2 class="modal-title">Confirm Deletion</h2>
+        <button class="close">&times;</button>
+      </div>
+      <p id="deleteMessage" class="modal-message">Are you sure you want to delete this contact?</p>
+      <div class="form-actions">
+        <button id="cancelDeleteBtn" class="btn btn-secondary">Cancel</button>
+        <button id="confirmDeleteBtn" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./assets/JS/address.js"></script>
+</body>
+
 </html>
