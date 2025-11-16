@@ -2,7 +2,6 @@ let contacts = [];
 let currentContactId = null;
 let isEditing = false;
 
-// DOM
 const contactsContainer = document.getElementById("contactsContainer");
 const emptyState = document.getElementById("emptyState");
 const searchInput = document.getElementById("searchInput");
@@ -18,7 +17,7 @@ const addressInput = document.getElementById("address");
 const notesInput = document.getElementById("notes");
 const notification = document.getElementById("notification");
 
-// Init
+// Initialize
 document.addEventListener("DOMContentLoaded", () => {
   loadContacts();
   setupEventListeners();
@@ -97,7 +96,7 @@ function createContactCard(contact) {
   card.dataset.id = contact.id;
   const first = contact.name.charAt(0).toUpperCase();
 
-  // Build info lines with icons
+  // Build info lines
   let infoHTML = `<h3 class="contact-name">${contact.name}</h3>`;
 
   if (contact.email) {
@@ -147,7 +146,7 @@ function createContactCard(contact) {
   card.appendChild(cardContent);
   card.appendChild(actionButtons);
 
-  // Add interactivity
+  // Interactivity
   card.addEventListener("mouseenter", (e) => {
     card.classList.add("active");
     card.addEventListener("mousemove", moveLight);
@@ -165,7 +164,7 @@ function createContactCard(contact) {
     card.style.setProperty("--mouse-y", `${y}px`);
   }
 
-  // Add event listeners for edit and delete buttons
+  // Event listeners for edit and delete buttons
   const editBtn = card.querySelector(".contact-btn-edit");
   const deleteBtn = card.querySelector(".contact-btn-delete");
 
@@ -186,7 +185,7 @@ function createContactCard(contact) {
   return card;
 }
 
-// Apply same effect to header
+// Apply effect to header
 const header = document.getElementById("header");
 header.addEventListener("mouseenter", () => header.classList.add("active"));
 header.addEventListener("mouseleave", () => header.classList.remove("active"));
