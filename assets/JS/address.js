@@ -1,299 +1,701 @@
-let contacts = [];
+/* ==================== STATE VARIABLES ==================== */
+let contacts = JSON.parse(localStorage.getItem("contacts")) || [];
+let chatMessages = JSON.parse(localStorage.getItem("chatMessages")) || {};
+let profile = JSON.parse(localStorage.getItem("profile")) || {
+  name: "Ahmad Sahl Pahlevi",
+  email: "sampleemail123@gmail.com",
+  phone: "12345678910",
+  address: "New York Street III",
+  birthday: "01-01-2000",
+};
 let currentContactId = null;
 let isEditing = false;
+let isSortedAsc = true;
+let currentTab = "contact";
+let currentChatContact = null;
 
-const contactsContainer = document.getElementById("contactsContainer");
-const emptyState = document.getElementById("emptyState");
+/* ==================== DOM ELEMENTS ==================== */
+const contactList = document.getElementById("contactList");
 const searchInput = document.getElementById("searchInput");
-const addContactBtn = document.getElementById("addContactBtn");
-const addFirstContactBtn = document.getElementById("addFirstContactBtn");
+const addContactButton = document.getElementById("addContactButton");
 const contactModal = document.getElementById("contactModal");
-const deleteModal = document.getElementById("deleteModal");
 const contactForm = document.getElementById("contactForm");
-const nameInput = document.getElementById("name");
-const emailInput = document.getElementById("email");
-const phoneInput = document.getElementById("phone");
-const addressInput = document.getElementById("address");
-const notesInput = document.getElementById("notes");
-const notification = document.getElementById("notification");
+const closeModal = document.getElementById("closeModal");
+const cancelButton = document.getElementById("cancelButton");
+const modalTitle = document.getElementById("modalTitle");
+const nameInput = document.getElementById("nameInput");
+const titleInput = document.getElementById("titleInput");
+const phoneInput = document.getElementById("phoneInput");
+const emailInput = document.getElementById("emailInput");
+const chatInput = document.getElementById("chatInput");
+const contactDetailPanel = document.getElementById("contactDetailPanel");
+const detailAvatar = document.getElementById("detailAvatar");
+const detailName = document.getElementById("detailName");
+const detailTitle = document.getElementById("detailTitle");
+const detailPhone = document.getElementById("detailPhone");
+const detailEmail = document.getElementById("detailEmail");
+const detailChat = document.getElementById("detailChat");
+const editContactButton = document.getElementById("editContactButton");
+const deleteContactButton = document.getElementById("deleteContactButton");
+const deleteModal = document.getElementById("deleteModal");
+const closeDeleteModal = document.getElementById("closeDeleteModal");
+const cancelDeleteButton = document.getElementById("cancelDeleteButton");
+const confirmDeleteButton = document.getElementById("confirmDeleteButton");
+const sortButton = document.getElementById("sortButton");
+const sidebar = document.getElementById("sidebar");
+const sidebarToggle = document.getElementById("sidebarToggle");
+const sidebarTitle = document.getElementById("sidebarTitle");
+const editProfileButton = document.getElementById("editProfileButton");
+const profileModal = document.getElementById("profileModal");
+const closeProfileModal = document.getElementById("closeProfileModal");
+const cancelProfileButton = document.getElementById("cancelProfileButton");
+const profileForm = document.getElementById("profileForm");
+const profileNameInput = document.getElementById("profileNameInput");
+const profileEmailInput = document.getElementById("profileEmailInput");
+const profileBirthdayInput = document.getElementById("profileBirthdayInput");
+const profilePhoneInput = document.getElementById("profilePhoneInput");
+const profileAddressInput = document.getElementById("profileAddressInput");
+const companyInput = document.getElementById("companyInput");
+const positionInput = document.getElementById("positionInput");
+const departmentInput = document.getElementById("departmentInput");
+const birthdayInput = document.getElementById("birthdayInput");
+const addressInput = document.getElementById("addressInput");
+const notesInput = document.getElementById("notesInput");
+const chatButton = document.getElementById("chatButton");
+const chatWindow = document.getElementById("chatWindow");
+const closeChatButton = document.getElementById("closeChatButton");
+const chatMessagesContainer = document.getElementById("chatMessages");
+const chatInputField = document.getElementById("chatInputField");
+const sendChatButton = document.getElementById("sendChatButton");
+const chatContactName = document.getElementById("chatContactName");
+const tabButtons = document.querySelectorAll(".tab-button");
+const contactTab = document.getElementById("contactTab");
+const workTab = document.getElementById("workTab");
+const aboutTab = document.getElementById("aboutTab");
 
-// Initialize
-document.addEventListener("DOMContentLoaded", () => {
-  loadContacts();
-  setupEventListeners();
-  renderContacts();
-  if (contacts.length === 0)
-    showNotification("Welcome to the Address Book!", "info");
-});
-
-function setupEventListeners() {
-  addContactBtn.addEventListener("click", openAddContactModal);
-  addFirstContactBtn.addEventListener("click", openAddContactModal);
-  searchInput.addEventListener("input", filterContacts);
-  contactForm.addEventListener("submit", handleFormSubmit);
-  document.querySelectorAll(".close").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      contactModal.classList.add("hidden");
-      deleteModal.classList.add("hidden");
-    });
-  });
-  [contactModal, deleteModal].forEach((modal) => {
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) {
-        modal.classList.add("hidden");
-      }
-    });
-  });
-  document
-    .getElementById("cancelBtn")
-    .addEventListener("click", () => contactModal.classList.add("hidden"));
-  document
-    .getElementById("cancelDeleteBtn")
-    .addEventListener("click", () => deleteModal.classList.add("hidden"));
-  document
-    .getElementById("confirmDeleteBtn")
-    .addEventListener("click", deleteContact);
+/* ==================== UTILITY FUNCTIONS ==================== */
+function getAvatarColor(name) {
+  const colors = [
+    "3b82f6",
+    "f59e0b",
+    "10b981",
+    "8b5cf6",
+    "ec4899",
+    "0ea5e9",
+    "f97316",
+    "06b6d4",
+  ];
+  const index = name.charCodeAt(0) % colors.length;
+  return colors[index];
 }
 
-function loadContacts() {
-  try {
-    contacts = JSON.parse(localStorage.getItem("contacts") || "[]");
-  } catch (e) {
-    contacts = [];
+function getInitials(name) {
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) {
+    return (
+      parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
+    ).toUpperCase();
   }
+  return name.substring(0, 2).toUpperCase();
 }
 
-function saveContacts() {
+function formatTime(date) {
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function saveContactsToStorage() {
   localStorage.setItem("contacts", JSON.stringify(contacts));
 }
 
-function renderContacts() {
-  contactsContainer.innerHTML = "";
-  const term = searchInput.value.toLowerCase().trim();
-  const filtered = term
-    ? contacts.filter(
-        (c) =>
-          c.name.toLowerCase().includes(term) ||
-          c.email.toLowerCase().includes(term)
-      )
-    : contacts;
+function saveChatMessagesToStorage() {
+  localStorage.setItem("chatMessages", JSON.stringify(chatMessages));
+}
 
-  if (filtered.length === 0) {
-    emptyState.classList.remove("hidden");
+function saveProfileToStorage() {
+  localStorage.setItem("profile", JSON.stringify(profile));
+}
+
+function showNotification(message, type = "success") {
+  const notification = document.createElement("div");
+  const bgColor = type === "success" ? "bg-green-500" : "bg-red-500";
+  const icon = type === "success" ? "fa-check-circle" : "fa-exclamation-circle";
+  notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-[100] flex items-center space-x-3 animate-fadeIn`;
+  notification.innerHTML = `
+                <i class="fas ${icon}"></i>
+                <span>${message}</span>
+            `;
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    notification.style.opacity = "0";
+    notification.style.transform = "translateY(-20px)";
+    notification.style.transition = "all 0.3s ease";
+    setTimeout(() => {
+      notification.remove();
+    }, 300);
+  }, 3000);
+}
+
+/* ==================== CONTACT FUNCTIONS ==================== */
+function renderContacts(filter = "") {
+  contactList.innerHTML = "";
+  const filteredContacts = contacts.filter(
+    (contact) =>
+      contact.name.toLowerCase().includes(filter.toLowerCase()) ||
+      contact.email.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  if (filteredContacts.length === 0) {
+    if (filter) {
+      contactList.innerHTML = `
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-search text-4xl mb-4 text-gray-300"></i>
+                            <p class="text-lg mb-2">No contacts found</p>
+                            <p class="text-sm mb-4">Try a different search term</p>
+                            <button class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" onclick="resetSearch()">
+                                <i class="fas fa-times mr-2"></i>Clear Search
+                            </button>
+                        </div>
+                    `;
+    } else {
+      contactList.innerHTML = `
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-address-book text-6xl mb-4"></i>
+                            <p class="text-lg mb-2">No contacts yet</p>
+                            <p class="text-sm mb-4">Click "New contact" to add your first contact</p>
+                        </div>
+                    `;
+    }
     return;
   }
-  emptyState.classList.add("hidden");
 
-  filtered.forEach((contact) => {
-    const card = createContactCard(contact);
-    contactsContainer.appendChild(card);
+  filteredContacts.forEach((contact) => {
+    const contactElement = document.createElement("div");
+    contactElement.className =
+      "contact-card bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all";
+    contactElement.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <img src="${contact.avatar}" alt="${
+      contact.name
+    }" class="w-12 h-12 rounded-full contact-avatar border-2 border-gray-100">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-gray-800 truncate">${
+                              contact.name
+                            }</h4>
+                            <p class="text-sm text-gray-500 truncate">${
+                              contact.title || "No title"
+                            }</p>
+                        </div>
+                        <div class="text-right min-w-0">
+                            <p class="font-medium text-gray-800 text-sm">${
+                              contact.phone
+                            }</p>
+                            <p class="text-xs text-gray-500 truncate max-w-[150px]">${
+                              contact.email
+                            }</p>
+                        </div>
+                    </div>
+                `;
+    contactElement.addEventListener("click", () => showContactDetails(contact));
+    contactList.appendChild(contactElement);
   });
 }
 
-function createContactCard(contact) {
-  const card = document.createElement("div");
-  card.className = "contact-card glass fade-in";
-  card.dataset.id = contact.id;
-  const first = contact.name.charAt(0).toUpperCase();
+function showContactDetails(contact) {
+  currentContactId = contact.id;
+  currentTab = "contact";
+  detailAvatar.src = contact.avatar;
+  detailName.textContent = contact.name;
+  detailTitle.textContent = contact.title || "No title";
+  detailPhone.textContent = contact.phone;
+  detailEmail.textContent = contact.email;
+  detailChat.textContent = contact.chat || "-";
 
-  // Build info lines
-  let infoHTML = `<h3 class="contact-name">${contact.name}</h3>`;
+  document.getElementById("detailCompany").textContent = contact.company || "-";
+  document.getElementById("detailPosition").textContent =
+    contact.position || "-";
+  document.getElementById("detailDepartment").textContent =
+    contact.department || "-";
 
-  if (contact.email) {
-    infoHTML += `<p class="contact-info-item"><i class="fas fa-envelope"></i>${contact.email}</p>`;
-  }
-  if (contact.phone) {
-    infoHTML += `<p class="contact-info-item"><i class="fas fa-phone"></i>${contact.phone}</p>`;
-  }
-  if (contact.address) {
-    infoHTML += `<p class="contact-info-item"><i class="fas fa-map-marker-alt"></i>${
-      contact.address.split("\n")[0]
-    }</p>`;
-  }
-  if (contact.notes) {
-    infoHTML += `<p class="contact-info-item"><i class="fas fa-sticky-note"></i>${
-      contact.notes.split("\n")[0]
-    }</p>`;
-  }
+  document.getElementById("detailBirthday").textContent =
+    contact.birthday || "-";
+  document.getElementById("detailAddress").textContent = contact.address || "-";
+  document.getElementById("detailNotes").textContent = contact.notes || "-";
 
-  const cardContent = document.createElement("div");
-  cardContent.className = "contact-card-content";
-  cardContent.innerHTML = `
-            <div class="contact-avatar">
-                ${first}
-            </div>
-            <div class="contact-details">
-                ${infoHTML}
-                <div class="contact-meta">
-                    <span>Added: ${new Date(
-                      contact.createdAt
-                    ).toLocaleDateString()}</span>
-                </div>
-            </div>
-        `;
-
-  const actionButtons = document.createElement("div");
-  actionButtons.className = "contact-actions";
-  actionButtons.innerHTML = `
-            <button class="contact-btn contact-btn-edit" data-id="${contact.id}">
-                <i class="fas fa-edit"></i>Edit
-            </button>
-            <button class="contact-btn contact-btn-delete" data-id="${contact.id}">
-                <i class="fas fa-trash-alt"></i>Delete
-            </button>
-        `;
-
-  card.appendChild(cardContent);
-  card.appendChild(actionButtons);
-
-  // Interactivity
-  card.addEventListener("mouseenter", (e) => {
-    card.classList.add("active");
-    card.addEventListener("mousemove", moveLight);
-  });
-  card.addEventListener("mouseleave", () => {
-    card.classList.remove("active");
-    card.removeEventListener("mousemove", moveLight);
-  });
-
-  function moveLight(e) {
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    card.style.setProperty("--mouse-x", `${x}px`);
-    card.style.setProperty("--mouse-y", `${y}px`);
-  }
-
-  // Event listeners for edit and delete buttons
-  const editBtn = card.querySelector(".contact-btn-edit");
-  const deleteBtn = card.querySelector(".contact-btn-delete");
-
-  editBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    openEditContactModal(contact.id, false);
-  });
-
-  deleteBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    currentContactId = contact.id;
-    document.getElementById(
-      "deleteMessage"
-    ).textContent = `Are you sure you want to delete ${contact.name}?`;
-    deleteModal.classList.remove("hidden");
-  });
-
-  return card;
+  switchTab("contact");
+  contactDetailPanel.classList.remove("hidden");
+  setTimeout(() => {
+    contactDetailPanel.classList.add("fade-in");
+  }, 10);
 }
 
-// Apply effect to header
-const header = document.getElementById("header");
-header.addEventListener("mouseenter", () => header.classList.add("active"));
-header.addEventListener("mouseleave", () => header.classList.remove("active"));
-header.addEventListener("mousemove", (e) => {
-  const rect = header.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  header.style.setProperty("--mouse-x", `${x}px`);
-  header.style.setProperty("--mouse-y", `${y}px`);
-});
+function switchTab(tabName) {
+  currentTab = tabName;
+  tabButtons.forEach((btn) => {
+    if (btn.dataset.tab === tabName) {
+      btn.classList.add("active");
+      btn.classList.remove("text-gray-500");
+    } else {
+      btn.classList.remove("active");
+      btn.classList.add("text-gray-500");
+    }
+  });
+  document.querySelectorAll(".tab-content").forEach((content) => {
+    content.classList.remove("active");
+  });
+  if (tabName === "contact") {
+    contactTab.classList.add("active");
+  } else if (tabName === "work") {
+    workTab.classList.add("active");
+  } else if (tabName === "about") {
+    aboutTab.classList.add("active");
+  }
+}
 
-// Modal functions with animations
+function resetSearch() {
+  searchInput.value = "";
+  renderContacts();
+}
+
 function openAddContactModal() {
   isEditing = false;
+  currentContactId = null;
+  modalTitle.textContent = "Add New Contact";
   contactForm.reset();
-  document.getElementById("modalTitle").textContent = "Add New Contact";
+  companyInput.value = "";
+  positionInput.value = "";
+  departmentInput.value = "";
+  birthdayInput.value = "";
+  addressInput.value = "";
+  notesInput.value = "";
   contactModal.classList.remove("hidden");
-  contactModal.querySelector(".modal-content").classList.add("slide-in");
+  setTimeout(() => {
+    nameInput.focus();
+  }, 100);
 }
 
-function openEditContactModal(id, readOnly = false) {
-  const contact = contacts.find((c) => c.id === id);
-  if (!contact) return;
-  isEditing = !readOnly;
-  currentContactId = id;
+function openEditContactModal(contact) {
+  isEditing = true;
+  currentContactId = contact.id;
+  modalTitle.textContent = "Edit Contact";
   nameInput.value = contact.name;
+  titleInput.value = contact.title || "";
+  phoneInput.value = contact.phone;
   emailInput.value = contact.email;
-  phoneInput.value = contact.phone || "";
+  chatInput.value = contact.chat || "";
+
+  companyInput.value = contact.company || "";
+  positionInput.value = contact.position || "";
+  departmentInput.value = contact.department || "";
+
+  birthdayInput.value = contact.birthday || "";
   addressInput.value = contact.address || "";
   notesInput.value = contact.notes || "";
-  document.getElementById("modalTitle").textContent = readOnly
-    ? "Contact Details"
-    : "Edit Contact";
+
   contactModal.classList.remove("hidden");
-  contactModal.querySelector(".modal-content").classList.add("slide-in");
+  setTimeout(() => {
+    nameInput.focus();
+  }, 100);
 }
 
-function handleFormSubmit(e) {
-  e.preventDefault();
-  if (!nameInput.value.trim() || !emailInput.value.trim()) {
-    showNotification("Name and email are required.", "error");
-    return;
-  }
-  if (isEditing) {
-    contacts = contacts.map((c) =>
-      c.id === currentContactId
-        ? {
-            ...c,
-            name: nameInput.value.trim(),
-            email: emailInput.value.trim(),
-            phone: phoneInput.value.trim(),
-            address: addressInput.value.trim(),
-            notes: notesInput.value.trim(),
-            updatedAt: new Date().toISOString(),
-          }
-        : c
-    );
-  } else {
-    contacts.push({
-      id: Date.now().toString(),
-      name: nameInput.value.trim(),
-      email: emailInput.value.trim(),
-      phone: phoneInput.value.trim(),
-      address: addressInput.value.trim(),
-      notes: notesInput.value.trim(),
-      createdAt: new Date().toISOString(),
-    });
-  }
-  saveContacts();
-  renderContacts();
-  contactModal.querySelector(".modal-content").classList.remove("slide-in");
-  contactModal.querySelector(".modal-content").classList.add("slide-out");
-  setTimeout(() => {
-    contactModal.classList.add("hidden");
-    contactModal.querySelector(".modal-content").classList.remove("slide-out");
-  }, 500);
-  showNotification(
-    isEditing ? "Contact updated!" : "Contact added!",
-    "success"
-  );
+function closeContactModal() {
+  contactModal.classList.add("hidden");
+  contactForm.reset();
+}
+
+function closeDeleteModalFunc() {
+  deleteModal.classList.add("hidden");
+}
+
+function showDeleteConfirmation() {
+  deleteModal.classList.remove("hidden");
 }
 
 function deleteContact() {
-  contacts = contacts.filter((c) => c.id !== currentContactId);
-  saveContacts();
-  renderContacts();
-  deleteModal.querySelector(".modal-content").classList.remove("slide-in");
-  deleteModal.querySelector(".modal-content").classList.add("slide-out");
+  contacts = contacts.filter((contact) => contact.id !== currentContactId);
+  if (chatMessages[currentContactId]) {
+    delete chatMessages[currentContactId];
+    saveChatMessagesToStorage();
+  }
+  saveContactsToStorage();
+  contactDetailPanel.classList.add("hidden");
+  renderContacts(searchInput.value);
+  closeDeleteModalFunc();
+  showNotification("Contact deleted successfully", "success");
+}
+
+function saveContact(e) {
+  e.preventDefault();
+  const name = nameInput.value.trim();
+  const title = titleInput.value.trim();
+  const phone = phoneInput.value.trim();
+  const email = emailInput.value.trim();
+  const chat = chatInput.value.trim();
+
+  const company = companyInput.value.trim();
+  const position = positionInput.value.trim();
+  const department = departmentInput.value.trim();
+
+  const birthday = birthdayInput.value.trim();
+  const address = addressInput.value.trim();
+  const notes = notesInput.value.trim();
+
+  if (!name || !phone || !email) {
+    showNotification("Please fill in all required fields", "error");
+    return;
+  }
+
+  const initials = getInitials(name);
+  const color = getAvatarColor(name);
+  const avatar = `https://placehold.co/40x40/${color}/ffffff?text=${initials}`;
+
+  const contactData = {
+    name,
+    title,
+    phone,
+    email,
+    chat,
+    avatar,
+    company,
+    position,
+    department,
+    birthday,
+    address,
+    notes,
+  };
+
+  if (isEditing) {
+    const index = contacts.findIndex(
+      (contact) => contact.id === currentContactId
+    );
+    if (index !== -1) {
+      contacts[index] = { ...contacts[index], ...contactData };
+      showNotification("Contact updated successfully", "success");
+    }
+  } else {
+    contactData.id = Date.now();
+    contacts.push(contactData);
+    showNotification("Contact added successfully", "success");
+  }
+
+  if (isSortedAsc) {
+    contacts.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  saveContactsToStorage();
+  renderContacts(searchInput.value);
+  closeContactModal();
+
+  if (isEditing && currentContactId) {
+    const updatedContact = contacts.find((c) => c.id === currentContactId);
+    if (updatedContact) {
+      showContactDetails(updatedContact);
+    }
+  }
+}
+
+function sortContacts() {
+  if (contacts.length === 0) {
+    showNotification("No contacts to sort", "error");
+    return;
+  }
+  if (isSortedAsc) {
+    contacts.sort((a, b) => b.name.localeCompare(a.name));
+    sortButton.innerHTML = '<i class="fas fa-sort-alpha-up text-gray-600"></i>';
+    sortButton.title = "Sort Z to A";
+    isSortedAsc = false;
+  } else {
+    contacts.sort((a, b) => a.name.localeCompare(b.name));
+    sortButton.innerHTML =
+      '<i class="fas fa-sort-alpha-down text-gray-600"></i>';
+    sortButton.title = "Sort A to Z";
+    isSortedAsc = true;
+  }
+  renderContacts(searchInput.value);
+}
+
+/* ==================== SIDEBAR FUNCTIONS ==================== */
+function toggleSidebar() {
+  sidebar.classList.toggle("sidebar-collapsed");
+  const toggleIcon = sidebarToggle.querySelector("i");
+  if (sidebar.classList.contains("sidebar-collapsed")) {
+    toggleIcon.className = "fas fa-chevron-right text-gray-600";
+  } else {
+    toggleIcon.className = "fas fa-chevron-left text-gray-600";
+  }
+}
+
+/* ==================== PROFILE FUNCTIONS ==================== */
+function openProfileModal() {
+  profileNameInput.value = profile.name;
+  profileEmailInput.value = profile.email;
+  profileBirthdayInput.value = profile.birthday;
+  profilePhoneInput.value = profile.phone;
+  profileAddressInput.value = profile.address;
+  profileModal.classList.remove("hidden");
   setTimeout(() => {
-    deleteModal.classList.add("hidden");
-    deleteModal.querySelector(".modal-content").classList.remove("slide-out");
-  }, 500);
-  showNotification("Contact deleted!", "success");
+    profileNameInput.focus();
+  }, 100);
 }
 
-function filterContacts() {
-  renderContacts();
+function closeProfileModalFunc() {
+  profileModal.classList.add("hidden");
 }
 
-function showNotification(msg, type = "info") {
-  notification.textContent = msg;
-  notification.className = `notification fixed top-6 right-6 p-4 rounded-xl text-white font-medium z-50 ${
-    type === "error"
-      ? "bg-red-900/80"
-      : type === "success"
-      ? "bg-green-900/80"
-      : "bg-blue-900/80"
-  } fade-in`;
-  notification.classList.remove("hidden");
-  setTimeout(() => notification.classList.add("hidden"), 3000);
+function saveProfile(e) {
+  e.preventDefault();
+  profile.name = profileNameInput.value.trim();
+  profile.email = profileEmailInput.value.trim();
+  profile.birthday = profileBirthdayInput.value.trim();
+  profile.phone = profilePhoneInput.value.trim();
+  profile.address = profileAddressInput.value.trim();
+
+  document.querySelector(".sidebar-content h2").textContent = profile.name;
+  document.querySelector(".sidebar-content p").textContent = profile.email;
+  document.querySelectorAll(".sidebar-content .space-y-4 span")[0].textContent =
+    profile.birthday;
+  document.querySelectorAll(".sidebar-content .space-y-4 span")[1].textContent =
+    profile.phone;
+  document.querySelectorAll(".sidebar-content .space-y-4 span")[2].textContent =
+    profile.address;
+
+  saveProfileToStorage();
+  closeProfileModalFunc();
+  showNotification("Profile updated successfully", "success");
 }
+
+/* ==================== CHAT FUNCTIONS ==================== */
+function openChatWindow(contact) {
+  currentChatContact = contact;
+  chatContactName.textContent = contact.name;
+
+  chatWindow.classList.remove("hide");
+  setTimeout(() => {
+    chatWindow.classList.add("show");
+  }, 10);
+
+  loadChatMessages(contact.id);
+
+  setTimeout(() => {
+    chatInputField.focus();
+  }, 300);
+}
+
+function closeChatWindow() {
+  chatWindow.classList.remove("show");
+  chatWindow.classList.add("hide");
+
+  setTimeout(() => {
+    currentChatContact = null;
+    chatWindow.classList.remove("hide");
+  }, 300);
+}
+
+function loadChatMessages(contactId) {
+  chatMessagesContainer.innerHTML = "";
+
+  const messages = chatMessages[contactId] || [];
+
+  if (messages.length === 0) {
+    chatMessagesContainer.innerHTML = `
+                    <div class="empty-chat">
+                        <i class="fas fa-comments"></i>
+                        <p class="text-sm">No messages yet</p>
+                        <p class="text-xs">Start a conversation!</p>
+                    </div>
+                `;
+    return;
+  }
+
+  messages.forEach((msg) => {
+    addMessageToUI(msg.text, msg.sender, msg.time);
+  });
+
+  chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+}
+
+function addMessageToUI(text, sender, time) {
+  const messageElement = document.createElement("div");
+  messageElement.className = `message ${sender}`;
+  messageElement.innerHTML = `
+                <div>${text}</div>
+                <div class="message-time">${time}</div>
+            `;
+  chatMessagesContainer.appendChild(messageElement);
+}
+
+function sendMessage() {
+  const message = chatInputField.value.trim();
+  if (!message || !currentChatContact) return;
+
+  const now = new Date();
+  const time = formatTime(now);
+
+  if (!chatMessages[currentChatContact.id]) {
+    chatMessages[currentChatContact.id] = [];
+  }
+
+  chatMessages[currentChatContact.id].push({
+    text: message,
+    sender: "sent",
+    time: time,
+  });
+
+  saveChatMessagesToStorage();
+
+  addMessageToUI(message, "sent", time);
+
+  chatInputField.value = "";
+
+  chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+
+  setTimeout(() => {
+    showTypingIndicator();
+
+    setTimeout(() => {
+      removeTypingIndicator();
+
+      const responses = [
+        "Thanks for your message!",
+        "Got it! I'll get back to you soon.",
+        "Sounds good!",
+        "Okay, I understand.",
+        "Perfect, thanks!",
+      ];
+      const randomResponse =
+        responses[Math.floor(Math.random() * responses.length)];
+      const responseTime = formatTime(new Date());
+
+      chatMessages[currentChatContact.id].push({
+        text: randomResponse,
+        sender: "received",
+        time: responseTime,
+      });
+
+      saveChatMessagesToStorage();
+
+      addMessageToUI(randomResponse, "received", responseTime);
+
+      chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+    }, 2000);
+  }, 1000);
+}
+
+function showTypingIndicator() {
+  const typingElement = document.createElement("div");
+  typingElement.className = "typing-indicator";
+  typingElement.id = "typingIndicator";
+  typingElement.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+  chatMessagesContainer.appendChild(typingElement);
+  chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const typingElement = document.getElementById("typingIndicator");
+  if (typingElement) {
+    typingElement.remove();
+  }
+}
+
+/* ==================== EVENT LISTENERS ==================== */
+addContactButton.addEventListener("click", function (e) {
+  e.preventDefault();
+  e.stopPropagation();
+  openAddContactModal();
+});
+
+searchInput.addEventListener("input", () => renderContacts(searchInput.value));
+closeModal.addEventListener("click", closeContactModal);
+cancelButton.addEventListener("click", closeContactModal);
+contactForm.addEventListener("submit", saveContact);
+
+editContactButton.addEventListener("click", () => {
+  const contact = contacts.find((c) => c.id === currentContactId);
+  if (contact) openEditContactModal(contact);
+});
+
+deleteContactButton.addEventListener("click", showDeleteConfirmation);
+closeDeleteModal.addEventListener("click", closeDeleteModalFunc);
+cancelDeleteButton.addEventListener("click", closeDeleteModalFunc);
+confirmDeleteButton.addEventListener("click", deleteContact);
+sortButton.addEventListener("click", sortContacts);
+
+sidebarToggle.addEventListener("click", function (e) {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleSidebar();
+});
+
+editProfileButton.addEventListener("click", function (e) {
+  e.preventDefault();
+  e.stopPropagation();
+  openProfileModal();
+});
+
+closeProfileModal.addEventListener("click", closeProfileModalFunc);
+cancelProfileButton.addEventListener("click", closeProfileModalFunc);
+profileForm.addEventListener("submit", saveProfile);
+
+chatButton.addEventListener("click", () => {
+  const contact = contacts.find((c) => c.id === currentContactId);
+  if (contact) openChatWindow(contact);
+});
+
+closeChatButton.addEventListener("click", closeChatWindow);
+sendChatButton.addEventListener("click", sendMessage);
+
+chatInputField.addEventListener("keypress", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+tabButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    switchTab(btn.dataset.tab);
+  });
+});
+
+contactModal.addEventListener("click", (e) => {
+  if (e.target === contactModal) {
+    closeContactModal();
+  }
+});
+
+deleteModal.addEventListener("click", (e) => {
+  if (e.target === deleteModal) {
+    closeDeleteModalFunc();
+  }
+});
+
+profileModal.addEventListener("click", (e) => {
+  if (e.target === profileModal) {
+    closeProfileModalFunc();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!contactModal.classList.contains("hidden")) {
+      closeContactModal();
+    }
+    if (!deleteModal.classList.contains("hidden")) {
+      closeDeleteModalFunc();
+    }
+    if (!profileModal.classList.contains("hidden")) {
+      closeProfileModalFunc();
+    }
+    if (chatWindow.classList.contains("show")) {
+      closeChatWindow();
+    }
+  }
+});
+
+/* ==================== INITIALIZATION ==================== */
+renderContacts();
