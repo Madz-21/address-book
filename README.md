@@ -15,7 +15,7 @@ This is a web-based address book application built with HTML, CSS, and JavaScrip
 
 - Add, edit, and delete contacts
 - Search contacts by name or email
-- Responsive design for mobile and desktop
+- Responsive design for desktop
 - Clean and intuitive user interface
 - Local storage for data persistence
 
@@ -83,6 +83,7 @@ address-book/
 
 **Name**: Ahmad Sahl Pahlevi                                    
 **GitHub**: [\[My Github Profile\]](https://github.com/Madz-21)
+
 
 
 
