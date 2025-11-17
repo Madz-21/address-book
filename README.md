@@ -73,9 +73,14 @@ flowchart TD
 
 ```
 address-book/
+├── assets
+|   ├── CSS
+|   |   └── style.css
+|   ├── Images
+|       ├── address-book.png
+|       └── Gemini1.png
+|   
 ├── index.html
-├── tailwind.config.js
-├── address.js
 └── README.md
 ```
 
@@ -83,6 +88,7 @@ address-book/
 
 **Name**: Ahmad Sahl Pahlevi                                    
 **GitHub**: [\[My Github Profile\]](https://github.com/Madz-21)
+
 
 
 
