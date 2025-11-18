@@ -525,7 +525,7 @@ function addMessageToUI(text, sender, time) {
   chatMessagesContainer.appendChild(messageElement);
 }
 
-function sendMessage() {
+async function sendMessage() {
   const message = chatInputField.value.trim();
   if (!message || !currentChatContact) return;
 
@@ -550,36 +550,219 @@ function sendMessage() {
 
   chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
 
+  chatInputField.disabled = true;
+  sendChatButton.disabled = true;
+
   setTimeout(() => {
     showTypingIndicator();
 
-    setTimeout(() => {
-      removeTypingIndicator();
+    // Get AI response
+    getAIResponse(message)
+      .then((aiResponse) => {
+        removeTypingIndicator();
 
-      const responses = [
-        "Thanks for your message!",
-        "Got it! I'll get back to you soon.",
-        "Sounds good!",
-        "Okay, I understand.",
-        "Perfect, thanks!",
-      ];
-      const randomResponse =
-        responses[Math.floor(Math.random() * responses.length)];
-      const responseTime = formatTime(new Date());
+        const responseTime = formatTime(new Date());
 
-      chatMessages[currentChatContact.id].push({
-        text: randomResponse,
-        sender: "received",
-        time: responseTime,
+        chatMessages[currentChatContact.id].push({
+          text: aiResponse,
+          sender: "received",
+          time: responseTime,
+        });
+
+        saveChatMessagesToStorage();
+
+        addMessageToUI(aiResponse, "received", responseTime);
+
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+
+        // Re-enable input
+        chatInputField.disabled = false;
+        sendChatButton.disabled = false;
+        chatInputField.focus();
+      })
+      .catch((error) => {
+        removeTypingIndicator();
+        console.error("AI Response Error:", error);
+
+        // Fallback response if AI fails
+        const fallbackResponse = "Maaf, koneksi lagi bermasalah. Coba lagi ya!";
+        const responseTime = formatTime(new Date());
+
+        chatMessages[currentChatContact.id].push({
+          text: fallbackResponse,
+          sender: "received",
+          time: responseTime,
+        });
+
+        saveChatMessagesToStorage();
+        addMessageToUI(fallbackResponse, "received", responseTime);
+
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+
+        // Re-enable input
+        chatInputField.disabled = false;
+        sendChatButton.disabled = false;
+        chatInputField.focus();
       });
-
-      saveChatMessagesToStorage();
-
-      addMessageToUI(randomResponse, "received", responseTime);
-
-      chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
-    }, 2000);
   }, 1000);
+}
+
+async function getAIResponse(userMessage) {
+  try {
+    const conversationHistory = chatMessages[currentChatContact.id] || [];
+    const recentMessages = conversationHistory.slice(0, -1).slice(-10);
+
+    let conversationContext = "";
+    if (recentMessages.length > 0) {
+      conversationContext =
+        "\n\nPercakapan sebelumnya:\n" +
+        recentMessages
+          .map((msg) => {
+            const sender =
+              msg.sender === "sent" ? "Saya" : currentChatContact.name;
+            return `${sender}: "${msg.text}"`;
+          })
+          .join("\n");
+    }
+
+    const systemPrompt = `Kamu adalah ${currentChatContact.name}, teman chat yang sedang mengobrol casual lewat WhatsApp.
+
+ATURAN PENTING:
+1. Baca SELURUH konteks percakapan dengan teliti
+2. Pahami apa yang ditanyakan atau diminta
+3. Jawab SESUAI dengan pertanyaan/permintaan yang spesifik
+4. Gunakan bahasa Indonesia casual (boleh campur bahasa gaul)
+5. Singkat tapi relevan (1-2 kalimat maksimal)
+6. Jangan ngawur atau asal jawab
+
+Contoh bagaimana cara menjawab yang benar:
+- Kalau ditanya "Lagi dimana?" → Jawab lokasi spesifik seperti "Di rumah nih" atau "Masih di kantor"
+- Kalau diajak "Sini lah" atau "Kesini dong" → Jawab seperti "Bentar lagi nyampe" atau "Sekarang gabisa, besok ya"
+- Kalau ditanya "Ngapain?" → Jawab aktivitas seperti "Lagi kerja" atau "Nonton netflix"
+- Kalau disapa "Hi" → Balas "Hi! Ada apa?" atau "Halo!"
+
+JANGAN jawab dengan hal umum yang tidak nyambung!${conversationContext}
+
+Saya baru saja bilang: "${userMessage}"
+
+Sekarang balas dengan natural dan PASTI NYAMBUNG dengan apa yang saya bilang!`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 200,
+        temperature: 0.8,
+        messages: [
+          {
+            role: "user",
+            content: systemPrompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("API Error:", errorData);
+      throw new Error(`API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.content && data.content[0] && data.content[0].text) {
+      let aiResponse = data.content[0].text.trim();
+
+      // Remove quotes, asterisks, and other formatting
+      aiResponse = aiResponse.replace(/^["'*]+|["'*]+$/g, "").trim();
+      aiResponse = aiResponse.replace(/^\*\*|\*\*$/g, "").trim();
+
+      // Remove "Nama:" prefix if AI adds it
+      aiResponse = aiResponse.replace(
+        new RegExp(`^${currentChatContact.name}:\\s*`, "i"),
+        ""
+      );
+
+      // Prevent duplicate responses
+      if (
+        aiResponse === userMessage ||
+        aiResponse.toLowerCase() === userMessage.toLowerCase()
+      ) {
+        return getContextualFallback(userMessage);
+      }
+
+      return aiResponse;
+    } else {
+      console.error("Invalid response structure:", data);
+      throw new Error("Invalid AI response structure");
+    }
+  } catch (error) {
+    console.error("Error getting AI response:", error);
+    return getContextualFallback(userMessage);
+  }
+}
+
+function getContextualFallback(userMessage) {
+  const lowerMsg = userMessage.toLowerCase();
+
+  // Location questions
+  if (
+    lowerMsg.includes("dimana") ||
+    lowerMsg.includes("mana") ||
+    lowerMsg.includes("dmn")
+  ) {
+    const locations = [
+      "Di rumah, naon?",
+      "Lg di jalan, nape cuy?",
+      "Lagi mancing",
+      "Di kampus",
+    ];
+    return locations[Math.floor(Math.random() * locations.length)];
+  }
+
+  // Invitation
+  if (
+    lowerMsg.includes("sini") ||
+    lowerMsg.includes("kesini") ||
+    lowerMsg.includes("sokin") ||
+    lowerMsg.includes("Nongki") ||
+    lowerMsg.includes("kemari")
+  ) {
+    const inviteResponses = ["Kmna?", "Ngapain?"];
+    return inviteResponses[Math.floor(Math.random() * inviteResponses.length)];
+  }
+
+  // Activity questions
+  if (
+    lowerMsg.includes("Nongki") ||
+    lowerMsg.includes("Kerkom") ||
+    lowerMsg.includes("Tmpt biasa") ||
+    lowerMsg.includes("Cafe")
+  ) {
+    const activities = ["Yauds ntar gua kesitu", "Ada siapa aja emg?"];
+    return activities[Math.floor(Math.random() * activities.length)];
+  }
+
+  // Greetings
+  if (lowerMsg.match(/^(hi|hai|halo|hello|hey|p)$/)) {
+    return "Oyy, knp?";
+  }
+
+  // Default smart responses
+  const activityResponse = ["Ada siapa aja emg?", "Yauds ntar gua kesitu"];
+  return activityResponse[Math.floor(Math.random() * activityResponse.length)];
+}
+
+function getRandomFallbackResponse() {
+  const fallbacks = [
+    "Ada siapa aja emg",
+    "Bentar ya, lagi sibuk dikit wkwkwk",
+    "Wkwk iya",
+  ];
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
 }
 
 function showTypingIndicator() {
